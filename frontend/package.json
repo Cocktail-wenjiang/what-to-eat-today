@@ -1,0 +1,7 @@
+{
+  "name": "what-to-eat-today-user",
+  "private": true,
+  "scripts": {"dev": "vite", "build": "vite build"},
+  "dependencies": {"@vitejs/plugin-vue": "latest", "vite": "latest", "vue": "latest"},
+  "devDependencies": {}
+}
