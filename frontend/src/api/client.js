@@ -23,6 +23,7 @@ const TIMEOUT_MS = 8000
 
 /** 通道标识 -> 中文展示名 */
 export const CHANNEL_LABEL = {
+  'backend-stream': '实时推送',
   backend: '后端服务',
   local: '本地兜底',
   offline: '离线演示',
@@ -148,6 +149,76 @@ async function historyViaBackend() {
       created_at: row.created_at,
     })
   )
+}
+
+// ============ 通道 1b：FastAPI 后端（SSE 流式） ============
+
+/**
+ * 流式推荐 —— 通过 SSE 逐帧接收匹配进度与菜谱。
+ *
+ * 与 recommendViaBackend 的区别：结果不再「等全部算完一次性返回」，
+ * 而是每匹配到一道菜谱就推一帧，界面可边收边渲染。
+ *
+ * @param {object} request 推荐请求体
+ * @param {{ onEvent?: (event: object) => void }} options 每帧回调（start / recipe / done）
+ * @returns 与 recommendViaBackend 同构的结果对象
+ */
+export async function requestRecommendationStream(request, { onEvent } = {}) {
+  let response
+  try {
+    response = await fetch(`${API_BASE}/api/recommend/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    })
+  } catch {
+    throw new ApiError('网络不可用', { type: 'network', channel: 'backend-stream' })
+  }
+
+  if (!response.ok || !response.body) {
+    throw new ApiError(`后端返回 ${response.status}`, {
+      type: response.status === 422 ? 'business' : 'http',
+      status: response.status,
+      channel: 'backend-stream',
+    })
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  const collected = []
+  let doneEvent = null
+
+  while (true) {
+    const { value, done: finished } = await reader.read()
+    if (finished) break
+    buffer += decoder.decode(value, { stream: true })
+
+    // SSE 以空行分帧；末尾可能是半帧，留到下一轮拼接。
+    const frames = buffer.split('\n\n')
+    buffer = frames.pop()
+    for (const frame of frames) {
+      const dataLine = frame.split('\n').find((line) => line.startsWith('data:'))
+      if (!dataLine) continue
+      let event
+      try {
+        event = JSON.parse(dataLine.slice(5).trim())
+      } catch {
+        continue // 忽略心跳等非 JSON 帧
+      }
+      onEvent?.(event)
+      if (event.type === 'recipe') collected.push(event.recipe)
+      if (event.type === 'done') doneEvent = event
+    }
+  }
+
+  return {
+    id: doneEvent?.id ?? null,
+    recommendations: dedupeRecipes(collected),
+    mode: 'rule-fallback',
+    channel: 'backend-stream',
+    elapsedMs: doneEvent?.elapsed_ms ?? null,
+  }
 }
 
 // ============ 通道 2：本地种子菜谱 + 本地规则 ============

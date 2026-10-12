@@ -4,12 +4,18 @@
  * 集中管理：
  *  - 表单状态与校验错误
  *  - 请求状态机 idle / loading / success / empty / error
- *  - 三级降级通道的切换提示
+ *  - 数据通道切换提示（实时推送 / 后端 / 本地兜底）
+ *  - 流式推送进度（SSE 逐帧渲染）
  *  - 推荐历史
  *  - 表单草稿本地持久化（刷新不丢输入）
  */
 import { reactive, ref, computed, watch, onMounted } from 'vue'
-import { requestRecommendation, requestHistory, CHANNEL_LABEL } from '@/api/client'
+import {
+  requestRecommendation,
+  requestRecommendationStream,
+  requestHistory,
+  CHANNEL_LABEL,
+} from '@/api/client'
 import { validateForm, toRequestPayload } from '@/utils/validators'
 
 const DRAFT_KEY = 'what-to-eat:form-draft'
@@ -48,6 +54,8 @@ export function useRecommendation() {
   const errorMessage = ref('')
   const usedMode = ref('')
   const hasSubmitted = ref(false)
+  /** 流式推送进度：{ current, total }，仅在 loading 期间有意义 */
+  const streamProgress = ref({ current: 0, total: 0 })
 
   /** 表单草稿持久化：输入即存，避免误刷新丢失 */
   watch(
@@ -64,7 +72,12 @@ export function useRecommendation() {
 
   /** 顶部状态条文案 */
   const statusText = computed(() => {
-    if (status.value === 'loading') return '正在匹配菜谱…'
+    if (status.value === 'loading') {
+      const { current, total } = streamProgress.value
+      if (total > 0) return `实时推送中：已匹配 ${current}/${total} 道菜谱`
+      if (current > 0) return `实时推送中：已收到 ${current} 道菜谱`
+      return '正在建立实时通道…'
+    }
     if (status.value === 'error') return errorMessage.value
     if (status.value === 'empty') {
       return '没有同时满足条件的菜谱，试试放宽用时或换个口味'
@@ -106,10 +119,28 @@ export function useRecommendation() {
     errorMessage.value = ''
     hasSubmitted.value = true
     results.value = []
+    streamProgress.value = { current: 0, total: 0 }
+
+    const payload = toRequestPayload(form)
 
     try {
-      const payload = toRequestPayload(form)
-      const response = await requestRecommendation(payload)
+      let response
+      try {
+        // 优先走 SSE 流式通道：边匹配边渲染，进度实时可见
+        response = await requestRecommendationStream(payload, {
+          onEvent: (event) => {
+            if (event.type === 'start') {
+              streamProgress.value = { current: 0, total: 0 }
+            } else if (event.type === 'recipe') {
+              results.value = [...results.value, event.recipe]
+              streamProgress.value = { current: event.index, total: event.total }
+            }
+          },
+        })
+      } catch (streamError) {
+        console.warn('[channel] 实时推送不可用，降级到常规请求：', streamError.message)
+        response = await requestRecommendation(payload)
+      }
 
       results.value = response.recommendations || []
       channel.value = response.channel
@@ -127,6 +158,7 @@ export function useRecommendation() {
           : err?.message || '推荐失败，请稍后重试'
     } finally {
       loading.value = false
+      streamProgress.value = { current: 0, total: 0 }
     }
   }
 
@@ -187,6 +219,7 @@ export function useRecommendation() {
     usedMode,
     hasSubmitted,
     statusText,
+    streamProgress,
     // 动作
     submit,
     loadHistory,

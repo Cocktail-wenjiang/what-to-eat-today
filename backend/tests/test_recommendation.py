@@ -15,8 +15,14 @@ def test_recommendation_returns_matching_recipe_and_persists_history():
     assert response.status_code == 200
     body = response.json()
     assert body["recommendations"]
-    assert body["recommendations"][0]["recipeId"] == "R-001"
-    assert body["recommendations"][0]["source"] == "db"
+
+    # 断言结果满足筛选条件，而非硬编码菜谱 ID：
+    # 种子菜谱随迭代扩充（当前 110 条），硬编码 ID 会随数据变化失效。
+    for recipe in body["recommendations"]:
+        assert recipe["source"] == "db"
+        assert recipe["minutes"] <= 30
+        assert "清淡" in recipe["tags"]
+        assert "花生" not in " ".join(recipe["ingredients"] + recipe["tags"])
 
     history = client.get("/api/recommendations/history")
     assert history.status_code == 200

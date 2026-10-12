@@ -16,6 +16,8 @@ const props = defineProps({
   channelLabel: { type: String, default: '' },
   degraded: { type: Boolean, default: false },
   status: { type: String, default: 'idle' },
+  /** 流式推送进度 { current, total } */
+  progress: { type: Object, default: () => ({ current: 0, total: 0 }) },
 })
 
 const emit = defineEmits(['submit', 'reset', 'validate', 'choose-preference'])
@@ -28,6 +30,13 @@ const statusClass = computed(() => ({
   'status-success': props.status === 'success',
   'status-loading': props.status === 'loading',
 }))
+
+/** 流式进度百分比；总数未知时返回 null（显示为不确定态滑动动画） */
+const progressPercent = computed(() => {
+  const { current, total } = props.progress || {}
+  if (!total) return null
+  return Math.round((current / total) * 100)
+})
 </script>
 
 <template>
@@ -119,6 +128,14 @@ const statusClass = computed(() => ({
       <em v-if="errors.preference" class="field-error preference-error">
         {{ errors.preference }}
       </em>
+
+      <div v-if="loading" class="stream-progress" aria-hidden="true">
+        <div
+          class="stream-progress-bar"
+          :class="{ indeterminate: progressPercent === null }"
+          :style="progressPercent === null ? null : { width: progressPercent + '%' }"
+        ></div>
+      </div>
 
       <div class="planner-footer">
         <p class="status" :class="statusClass" role="status">
@@ -300,6 +317,30 @@ const statusClass = computed(() => ({
 }
 .preference-error {
   margin-top: 10px;
+}
+/* 流式推送进度条 */
+.stream-progress {
+  height: 3px;
+  margin-top: 22px;
+  overflow: hidden;
+  background: #e9efea;
+}
+.stream-progress-bar {
+  height: 100%;
+  background: var(--ink);
+  transition: width 0.25s ease;
+}
+.stream-progress-bar.indeterminate {
+  width: 35%;
+  animation: stream-slide 1.1s ease-in-out infinite;
+}
+@keyframes stream-slide {
+  0% {
+    margin-left: -35%;
+  }
+  100% {
+    margin-left: 100%;
+  }
 }
 .planner-footer {
   display: flex;

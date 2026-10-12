@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今天吃什么 · 实时监控</title>
+<style>
+  :root{font-family:Inter,"Microsoft YaHei",sans-serif;color:#253238;background:#f7f8f5;line-height:1.6}
+  *{box-sizing:border-box}
+  body{margin:0}
+  main{max-width:1080px;margin:auto;padding:48px 24px}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;border-bottom:1px solid #dfe5df;padding-bottom:24px}
+  h1{font-size:32px;margin:6px 0 4px;color:#173b35}
+  h2{font-size:15px;margin:0 0 12px;color:#173b35}
+  .eyebrow{letter-spacing:.16em;font-size:12px;color:#739078;margin:0}
+  .muted{color:#64776e;font-size:13px;margin:0}
+  .conn{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#52635b;background:#fff;border:1px solid #dde5de;padding:6px 12px;border-radius:20px;white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:50%;background:#b6c3bb;flex:none}
+  .conn.online .dot{background:#1e5b4e;box-shadow:0 0 0 3px #e6f1eb}
+  .conn.offline .dot{background:#c0563f;box-shadow:0 0 0 3px #f7e5e0}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:28px 0}
+  .card{background:#fff;border:1px solid #dde5de;padding:18px 20px}
+  .card .label{font-size:12px;color:#739078;letter-spacing:.06em}
+  .card .value{font-size:26px;color:#173b35;font-weight:600;margin-top:4px}
+  .panel{background:#fff;border:1px solid #dde5de}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #eef2ee}
+  .panel-body{max-height:520px;overflow-y:auto}
+  button{background:#1e5b4e;color:#fff;border:0;border-radius:4px;padding:8px 16px;font:inherit;font-size:13px;cursor:pointer}
+  button.ghost{background:#fff;color:#52635b;border:1px solid #cfd9d1}
+  .event{padding:14px 20px;border-bottom:1px solid #f2f5f2;display:grid;grid-template-columns:64px 1fr auto;gap:14px;align-items:baseline;animation:fadeUp .25s ease}
+  .event:last-child{border-bottom:0}
+  .event .time{font-size:12px;color:#8a9a91;font-variant-numeric:tabular-nums}
+  .event .title{font-size:14px;color:#173b35;font-weight:600}
+  .event .detail{font-size:13px;color:#64776e;margin-top:2px}
+  .event .meta{font-size:12px;color:#739078;text-align:right;white-space:nowrap}
+  .event.started .title{color:#4d6b7a}
+  .empty{padding:40px 20px;text-align:center;color:#8a9a91;font-size:13px}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media(max-width:700px){.stats{grid-template-columns:1fr}main{padding:28px 16px}header{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <p class="eyebrow">ADMIN · REALTIME</p>
+      <h1>推荐请求实时监控</h1>
+      <p class="muted">通过 SSE 订阅后端事件总线，用户每次发起推荐即实时到达此处。</p>
+    </div>
+    <span id="conn" class="conn offline"><span class="dot"></span><span id="connText">连接中…</span></span>
+  </header>
+
+  <section class="stats">
+    <div class="card"><div class="label">累计推荐请求</div><div class="value" id="total">0</div></div>
+    <div class="card"><div class="label">平均匹配耗时</div><div class="value" id="avg">—</div></div>
+    <div class="card"><div class="label">在线订阅数</div><div class="value" id="subs">0</div></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>事件流</h2>
+      <div>
+        <button class="ghost" id="clear">清空</button>
+        <button class="ghost" id="reconnect">重连</button>
+      </div>
+    </div>
+    <div class="panel-body" id="feed">
+      <div class="empty">等待用户发起推荐请求…</div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  // 后端地址：可用 ?api=http://host:port 覆盖，默认本机 8000
+  var API = new URLSearchParams(location.search).get('api') || 'http://127.0.0.1:8000'
+  var feed = document.getElementById('feed')
+  var conn = document.getElementById('conn')
+  var connText = document.getElementById('connText')
+  var totalEl = document.getElementById('total')
+  var avgEl = document.getElementById('avg')
+  var subsEl = document.getElementById('subs')
+
+  var total = 0
+  var totalMs = 0
+  var source = null
+
+  function setStatus(state, text) {
+    conn.className = 'conn ' + state
+    connText.textContent = text
+  }
+
+  function stamp() {
+    return new Date().toTimeString().slice(0, 8)
+  }
+
+  function addEvent(node) {
+    var empty = feed.querySelector('.empty')
+    if (empty) empty.remove()
+    feed.insertBefore(node, feed.firstChild)
+  }
+
+  function renderStarted(data) {
+    var c = data.criteria || {}
+    var el = document.createElement('div')
+    el.className = 'event started'
+    el.innerHTML =
+      '<span class="time">' + stamp() + '</span>' +
+      '<div><div class="title">收到推荐请求</div>' +
+      '<div class="detail">偏好「' + (c.preference || '不限') + '」· ' + (c.servings || '-') + ' 人 · ' +
+      (c.max_minutes || '-') + ' 分钟内' + (c.allergy ? ' · 忌口 ' + c.allergy : '') + '</div></div>' +
+      '<span class="meta">匹配中…</span>'
+    addEvent(el)
+  }
+
+  function renderDone(data) {
+    total += 1
+    totalMs += Number(data.elapsed_ms || 0)
+    totalEl.textContent = total
+    avgEl.textContent = (totalMs / total).toFixed(1) + ' ms'
+
+    var names = (data.recipes || []).join('、') || '无匹配'
+    var el = document.createElement('div')
+    el.className = 'event'
+    el.innerHTML =
+      '<span class="time">' + stamp() + '</span>' +
+      '<div><div class="title">推荐完成 · 记录 #' + data.id + '</div>' +
+      '<div class="detail">命中 ' + data.count + ' 道：' + names + '</div></div>' +
+      '<span class="meta">' + Number(data.elapsed_ms || 0).toFixed(1) + ' ms</span>'
+    addEvent(el)
+  }
+
+  function handle(payload) {
+    if (payload.type === 'connected') {
+      subsEl.textContent = payload.subscribers || 1
+      setStatus('online', '实时已连接')
+    } else if (payload.type === 'recommendation_started') {
+      renderStarted(payload)
+    } else if (payload.type === 'recommendation') {
+      renderDone(payload)
+    }
+  }
+
+  function connect() {
+    if (source) source.close()
+    setStatus('offline', '连接中…')
+    source = new EventSource(API + '/api/admin/stream')
+
+    source.onopen = function () { setStatus('online', '实时已连接') }
+    source.onmessage = function (event) {
+      try { handle(JSON.parse(event.data)) } catch (e) { /* 忽略非 JSON 帧 */ }
+    }
+    source.onerror = function () {
+      // EventSource 会自动重连，这里仅更新状态提示。
+      setStatus('offline', '连接中断，自动重连中…')
+    }
+  }
+
+  document.getElementById('clear').addEventListener('click', function () {
+    feed.innerHTML = '<div class="empty">等待用户发起推荐请求…</div>'
+  })
+  document.getElementById('reconnect').addEventListener('click', connect)
+
+  connect()
+})()
+</script>
+</body>
+</html>

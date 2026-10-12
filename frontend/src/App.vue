@@ -31,6 +31,7 @@ const {
   usedMode,
   hasSubmitted,
   statusText,
+  streamProgress,
   submit,
   loadHistory,
   replay,
@@ -283,6 +284,7 @@ watch(status, (value) => {
         :channel-label="channelLabel"
         :degraded="degraded"
         :status="status"
+        :progress="streamProgress"
         @submit="handleSubmit"
         @reset="reset"
         @validate="validateField"
