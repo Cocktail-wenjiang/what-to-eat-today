@@ -1,0 +1,18 @@
+{
+  "name": "what-to-eat-today",
+  "version": "1.0.0",
+  "private": true,
+  "description": "今天吃什么 —— uni-app + uniCloud(阿里云) 菜谱推荐应用",
+  "scripts": {
+    "gen:recipes": "node tools/generate_recipes.mjs",
+    "test:cloud-function": "node tools/test_uni_cloud_function.mjs",
+    "test:stats-function": "node tools/test_stats_function.mjs",
+    "test:ai-parse": "node tools/test_ai_parse_function.mjs",
+    "monitor:storage": "node tools/monitor_cloud_storage.mjs",
+    "watch:storage": "node tools/monitor_cloud_storage.mjs --watch 5",
+    "test": "node tools/generate_recipes.mjs && node tools/test_uni_cloud_function.mjs && node tools/test_stats_function.mjs && node tools/test_ai_parse_function.mjs"
+  },
+  "devDependencies": {
+    "docx": "^9.8.1"
+  }
+}

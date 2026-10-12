@@ -1,7 +1,15 @@
+"""
+数据访问层 - 统一入口
+
+菜谱种子数据来自本地 JSON（data/recipes.json），推荐历史写入本地 SQLite。
+云端数据链路已整体迁移到 uniCloud（见 uni-app/），本后端只保留本地链路。
+"""
 import json
 import sqlite3
+import logging
 from pathlib import Path
 
+logger = logging.getLogger("what_to_eat.data")
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
@@ -10,6 +18,7 @@ SEED_PATH = DATA_DIR / "recipes.json"
 
 
 def get_connection() -> sqlite3.Connection:
+    """获取 SQLite 连接（首次调用自动创建 data 目录与数据表，实现零配置启动）"""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH)
     connection.row_factory = sqlite3.Row
@@ -29,10 +38,12 @@ def get_connection() -> sqlite3.Connection:
 
 
 def load_recipes() -> list[dict]:
+    """加载所有菜谱（本地 JSON 种子数据）"""
     return json.loads(SEED_PATH.read_text(encoding="utf-8"))
 
 
 def save_history(request: dict, recommendations: list[dict]) -> int:
+    """保存一条推荐历史到本地 SQLite，返回自增 id"""
     with get_connection() as connection:
         cursor = connection.execute(
             """INSERT INTO recommendation_history
@@ -51,6 +62,7 @@ def save_history(request: dict, recommendations: list[dict]) -> int:
 
 
 def list_history() -> list[dict]:
+    """获取最近 20 条推荐历史"""
     with get_connection() as connection:
         rows = connection.execute(
             "SELECT * FROM recommendation_history ORDER BY id DESC LIMIT 20"
