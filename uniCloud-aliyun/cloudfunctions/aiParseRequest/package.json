@@ -1,0 +1,6 @@
+{
+  "name": "aiParseRequest",
+  "version": "1.0.0",
+  "description": "将生活化饮食表达转换为推荐参数",
+  "main": "index.js"
+}

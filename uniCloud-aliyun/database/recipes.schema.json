@@ -1,0 +1,53 @@
+{
+    "bsonType": "object",
+    "required": ["name", "minutes"],
+    "permission": {
+        "read": true,
+        "create": false,
+        "update": false,
+        "delete": false
+    },
+    "properties": {
+        "_id": {
+            "description": "菜谱唯一ID（R-001 形式），由初始化数据指定"
+        },
+        "name": {
+            "bsonType": "string",
+            "title": "菜谱名称",
+            "description": "菜谱名称",
+            "minLength": 1
+        },
+        "ingredients": {
+            "bsonType": "array",
+            "title": "食材列表",
+            "description": "食材名称数组，用于忌口匹配"
+        },
+        "steps": {
+            "bsonType": "array",
+            "title": "烹饪步骤",
+            "description": "详细制作过程，按顺序排列"
+        },
+        "minutes": {
+            "bsonType": "int",
+            "title": "预计用时",
+            "description": "预计用时（分钟），推荐时作为硬性上限",
+            "minimum": 1,
+            "maximum": 240
+        },
+        "tags": {
+            "bsonType": "array",
+            "title": "标签",
+            "description": "口味标签：清淡 / 高蛋白 / 素食 / 快捷，及下饭、汤等辅助标签"
+        },
+        "image": {
+            "bsonType": "string",
+            "title": "菜品图",
+            "description": "菜品图访问路径，形如 /static/images/recipes/R-001.jpg"
+        },
+        "source": {
+            "bsonType": "string",
+            "title": "数据来源",
+            "description": "数据来源标识"
+        }
+    }
+}

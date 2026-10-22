@@ -1,0 +1,30 @@
+{
+    "pages": [
+        {
+            "path": "pages/index/index",
+            "style": {
+                "navigationBarTitleText": "今天吃什么",
+                "navigationBarBackgroundColor": "#f5f5f7",
+                "navigationBarTextStyle": "black",
+                "enablePullDownRefresh": false
+            }
+        },
+        {
+            "path": "pages/qa/qa",
+            "style": {
+                "navigationBarTitleText": "问一问",
+                "navigationBarBackgroundColor": "#f5f5f7",
+                "navigationBarTextStyle": "black",
+                "enablePullDownRefresh": false
+            }
+        }
+    ],
+    "globalStyle": {
+        "navigationStyle": "custom",
+        "navigationBarTextStyle": "black",
+        "navigationBarTitleText": "今天吃什么",
+        "navigationBarBackgroundColor": "#f5f5f7",
+        "backgroundColor": "#f5f5f7"
+    },
+    "uniIdRouter": {}
+}

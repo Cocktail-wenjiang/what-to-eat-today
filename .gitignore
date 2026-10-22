@@ -1,8 +1,4 @@
-.venv/
-__pycache__/
-.pytest_cache/
-*.pyc
-.env
-*.db
-dist/
+unpackage/
+.DS_Store
+.hbuilderx/
 node_modules/

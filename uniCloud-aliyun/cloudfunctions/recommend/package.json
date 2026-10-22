@@ -1,0 +1,6 @@
+{
+    "name": "recommend",
+    "version": "1.0.0",
+    "description": "菜谱推荐云函数：按人数/用时/口味/忌口筛选，并记录推荐历史",
+    "main": "index.js"
+}

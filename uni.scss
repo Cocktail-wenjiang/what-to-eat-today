@@ -1,0 +1,47 @@
+/**
+ * uni-app 全局 SCSS 变量
+ *
+ * 与 frontend/src/style.css 的设计令牌保持同源，
+ * 便于在 rpx 布局中复用同一套品牌色。
+ */
+
+/* ===== 家常食谱档案令牌 ===== */
+$archive-paper: #f1ead9;
+$archive-paper-deep: #e7ddc9;
+$archive-card: #fffaf0;
+$archive-ink: #342d24;
+$archive-soft: #766d60;
+$archive-muted: #9b917f;
+$archive-olive: #81905e;
+$archive-olive-soft: #e6ead7;
+$archive-tomato: #a54532;
+$archive-tomato-soft: #f4e0d9;
+$archive-line: #c9bda8;
+$archive-line-soft: rgba(111, 94, 70, .18);
+$archive-shadow: 0 16rpx 36rpx rgba(77, 56, 31, .09);
+
+$ink: $archive-ink;
+$ink-soft: $archive-soft;
+$muted: $archive-muted;
+$muted-soft: #b8ac98;
+$paper: $archive-paper;
+$card: $archive-card;
+$line: $archive-line-soft;
+$lime: $archive-olive;
+$mint: $archive-olive-soft;
+$orange: $archive-tomato;
+$orange-ink: $archive-tomato;
+$blue: $archive-olive;
+$danger: $archive-tomato;
+
+/* ===== 字号阶梯 =====
+ * Web 端用 px，uni-app 统一换算为 rpx（1px ≈ 2rpx @750 设计稿）
+ */
+$fs-micro: 22rpx;
+$fs-xs: 24rpx;
+$fs-sm: 26rpx;
+$fs-base: 32rpx;
+$fs-lg: 44rpx;
+$fs-xl: 50rpx;
+
+$radius: 8rpx;

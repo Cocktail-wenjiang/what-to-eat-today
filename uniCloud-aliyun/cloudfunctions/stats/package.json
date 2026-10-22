@@ -1,0 +1,6 @@
+{
+  "name": "stats",
+  "version": "1.0.0",
+  "description": "云端数据核对：条数、齐全性、实测字节、存储用量与阈值",
+  "main": "index.js"
+}

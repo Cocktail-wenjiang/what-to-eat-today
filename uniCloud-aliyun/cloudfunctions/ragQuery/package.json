@@ -1,0 +1,6 @@
+{
+  "name": "ragQuery",
+  "version": "1.0.0",
+  "description": "美食知识问答云函数：中文 BM25 检索知识库，再由大模型依据资料作答并标注来源",
+  "main": "index.js"
+}

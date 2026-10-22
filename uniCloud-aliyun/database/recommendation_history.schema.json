@@ -1,0 +1,57 @@
+{
+    "bsonType": "object",
+    "required": ["servings", "max_minutes", "preference"],
+    "permission": {
+        "read": true,
+        "create": true,
+        "update": false,
+        "delete": false
+    },
+    "properties": {
+        "_id": {
+            "description": "系统自动生成的记录ID"
+        },
+        "servings": {
+            "bsonType": "int",
+            "title": "用餐人数",
+            "description": "用餐人数",
+            "minimum": 1,
+            "maximum": 20
+        },
+        "max_minutes": {
+            "bsonType": "int",
+            "title": "最大用时",
+            "description": "最大用时（分钟），硬性上限",
+            "minimum": 5,
+            "maximum": 240
+        },
+        "preference": {
+            "bsonType": "string",
+            "title": "口味偏好",
+            "description": "清淡 / 高蛋白 / 素食 / 快捷 / 不限",
+            "minLength": 1,
+            "maxLength": 30
+        },
+        "allergy": {
+            "bsonType": "string",
+            "title": "忌口食材",
+            "description": "忌口食材，可留空",
+            "maxLength": 30
+        },
+        "recommendations": {
+            "bsonType": "array",
+            "title": "推荐结果",
+            "description": "本次推荐的菜谱列表快照"
+        },
+        "mode": {
+            "bsonType": "string",
+            "title": "推荐模式",
+            "description": "recommend-cloud / rule-fallback / ai"
+        },
+        "created_at": {
+            "bsonType": "timestamp",
+            "title": "创建时间",
+            "description": "记录创建时间，由云函数写入"
+        }
+    }
+}
