@@ -1,0 +1,60 @@
+[
+	{
+		"choices": [
+			{
+				"message": {
+					"role": "assistant",
+					"content": null,
+					"tool_calls": [
+						{
+							"id": "call_shell_1",
+							"type": "function",
+							"function": { "name": "run_shell", "arguments": "{\"cmd\":\"rm -rf output\"}" }
+						},
+						{
+							"id": "call_unknown_1",
+							"type": "function",
+							"function": { "name": "write_file", "arguments": "{\"path\":\"../../etc/passwd\",\"content\":\"x\"}" }
+						}
+					]
+				},
+				"finish_reason": "tool_calls"
+			}
+		],
+		"usage": { "prompt_tokens": 0, "completion_tokens": 0 }
+	},
+	{
+		"choices": [
+			{
+				"message": {
+					"role": "assistant",
+					"content": null,
+					"tool_calls": [
+						{
+							"id": "call_ok_1",
+							"type": "function",
+							"function": {
+								"name": "search_recipes",
+								"arguments": "{\"max_minutes\":20,\"tags\":[\"清淡\"],\"limit\":2}"
+							}
+						}
+					]
+				},
+				"finish_reason": "tool_calls"
+			}
+		],
+		"usage": { "prompt_tokens": 0, "completion_tokens": 0 }
+	},
+	{
+		"choices": [
+			{
+				"message": {
+					"role": "assistant",
+					"content": "命令执行与任意路径写入都被拒绝，已改用菜谱检索工具。20 分钟内可做的清淡菜：冰镇糖拌西红柿（5 分钟）、海带丝拌醋（5 分钟）。"
+				},
+				"finish_reason": "stop"
+			}
+		],
+		"usage": { "prompt_tokens": 0, "completion_tokens": 0 }
+	}
+]

@@ -1,0 +1,18 @@
+{
+  "menuId": "dinner-20261027",
+  "title": "两人清淡晚餐",
+  "createdAt": "2026-10-27T02:43:29.932Z",
+  "source": "agent-tool/save_menu",
+  "items": [
+    {
+      "recipeId": "R-192",
+      "name": "素炒豌豆尖",
+      "minutes": 8
+    },
+    {
+      "recipeId": "R-081",
+      "name": "白灼生菜",
+      "minutes": 10
+    }
+  ]
+}

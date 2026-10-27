@@ -1,0 +1,55 @@
+[
+	{
+		"choices": [
+			{
+				"message": {
+					"role": "assistant",
+					"content": null,
+					"tool_calls": [
+						{
+							"id": "call_bad_1",
+							"type": "function",
+							"function": { "name": "search_recipes", "arguments": "{\"max_minutes\":9999,\"limit\":2}" }
+						}
+					]
+				},
+				"finish_reason": "tool_calls"
+			}
+		],
+		"usage": { "prompt_tokens": 0, "completion_tokens": 0 }
+	},
+	{
+		"choices": [
+			{
+				"message": {
+					"role": "assistant",
+					"content": null,
+					"tool_calls": [
+						{
+							"id": "call_fix_1",
+							"type": "function",
+							"function": {
+								"name": "search_recipes",
+								"arguments": "{\"max_minutes\":15,\"tags\":[\"素食\"],\"limit\":2}"
+							}
+						}
+					]
+				},
+				"finish_reason": "tool_calls"
+			}
+		],
+		"usage": { "prompt_tokens": 0, "completion_tokens": 0 }
+	},
+	{
+		"choices": [
+			{
+				"message": {
+					"role": "assistant",
+					"content": "按工具返回结果，15 分钟内可做的素食是冰镇糖拌西红柿（5 分钟）与海带丝拌醋（5 分钟）。第一次调用把用时上限写成了 9999 分钟，超出工具允许范围被拒绝，改为 15 分钟后取到了结果。"
+				},
+				"finish_reason": "stop"
+			}
+		],
+		"usage": { "prompt_tokens": 0, "completion_tokens": 0 }
+	}
+]

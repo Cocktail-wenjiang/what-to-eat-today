@@ -1,0 +1,259 @@
+{
+  "generatedAt": "2026-10-27T03:16:28.365Z",
+  "model": "MiniMax-M3.1-Flash",
+  "results": [
+    {
+      "id": "C1",
+      "name": "正常完成",
+      "mode": "真实模型",
+      "goal": "两个人晚饭，30 分钟内能做完，口味清淡，不吃虾。挑 2 道菜，算一下这顿的总用时，并把菜单存成 suite-dinner",
+      "status": "SUCCESS",
+      "steps": 4,
+      "toolCalls": 5,
+      "ms": 24752,
+      "wallMs": 24755,
+      "protocol": "tools",
+      "passed": true,
+      "expectation": "状态为 SUCCESS，且菜单文件真实落盘",
+      "stopReason": "成功标准全部满足",
+      "answer": "## 今晚菜单\n\n- **冰镇糖拌西红柿**：5 分钟\n- **凉拌黄瓜**：5 分钟\n\n## 整餐统计\n\n- **总用时：10 分钟**\n- **道数：2 道**\n- 两道菜均为清淡口味，且不含虾。\n\n菜单已保存为 **`suite-dinner`**。",
+      "taskId": "AG-20261027-111419-op0g",
+      "logFile": "output/agent/runs/AG-20261027-111419-op0g.jsonl",
+      "events": [
+        {
+          "name": "回答非空",
+          "passed": true,
+          "detail": "长度 128 字"
+        },
+        {
+          "name": "调用过检索工具",
+          "passed": true,
+          "detail": "已核实 4 道菜"
+        },
+        {
+          "name": "菜谱编号可追溯",
+          "passed": true,
+          "detail": "未出现编号"
+        },
+        {
+          "name": "菜名均有工具依据",
+          "passed": true,
+          "detail": "提及库内菜名 2 个，无依据：无"
+        },
+        {
+          "name": "统计数字与工具一致",
+          "passed": true,
+          "detail": "回答称 10 分钟，工具计算 10 分钟"
+        },
+        {
+          "name": "菜单文件已写入",
+          "passed": true,
+          "detail": "output/agent/menus/suite-dinner.json"
+        }
+      ]
+    },
+    {
+      "id": "C2",
+      "name": "参数错误",
+      "mode": "确定性回放",
+      "goal": "找出 15 分钟内能做的素食，给 2 道",
+      "status": "SUCCESS",
+      "steps": 3,
+      "toolCalls": 2,
+      "ms": 61,
+      "wallMs": 62,
+      "protocol": "scripted",
+      "passed": true,
+      "expectation": "越界参数被拒绝（VALIDATION_ERROR），错误回传给模型后改用合法参数并完成",
+      "stopReason": "成功标准全部满足",
+      "answer": "按工具返回结果，15 分钟内可做的素食是冰镇糖拌西红柿（5 分钟）与海带丝拌醋（5 分钟）。第一次调用把用时上限写成了 9999 分钟，超出工具允许范围被拒绝，改为 15 分钟后取到了结果。",
+      "taskId": "AG-20261027-111444-o5sk",
+      "logFile": "output/agent/runs/AG-20261027-111444-o5sk.jsonl",
+      "events": [
+        {
+          "name": "回答非空",
+          "passed": true,
+          "detail": "长度 95 字"
+        },
+        {
+          "name": "调用过检索工具",
+          "passed": true,
+          "detail": "已核实 2 道菜"
+        },
+        {
+          "name": "菜谱编号可追溯",
+          "passed": true,
+          "detail": "未出现编号"
+        },
+        {
+          "name": "菜名均有工具依据",
+          "passed": true,
+          "detail": "提及库内菜名 2 个，无依据：无"
+        }
+      ]
+    },
+    {
+      "id": "C3",
+      "name": "工具异常",
+      "mode": "真实模型 + 故障注入",
+      "goal": "挑 2 道 20 分钟内能做的清淡菜，并告诉我这顿的总用时",
+      "status": "SUCCESS",
+      "steps": 4,
+      "toolCalls": 3,
+      "ms": 28489,
+      "wallMs": 28489,
+      "protocol": "tools",
+      "passed": true,
+      "expectation": "异常以 INTERNAL_ERROR 回传；模型重试 1 次后放弃统计子目标，改为不含总用时的菜单（重试次数受限，未空转）",
+      "stopReason": "成功标准全部满足",
+      "answer": "### 菜单\n- 冰镇糖拌西红柿：5 分钟\n- 海带丝拌醋：5 分钟\n\n### 整餐统计\n- 总用时：10 分钟\n- 道数：2 道\n\n（统计工具本次返回异常，总用时按两道菜谱标注的用时相加。）",
+      "taskId": "AG-20261027-111444-0brq",
+      "logFile": "output/agent/runs/AG-20261027-111444-0brq.jsonl",
+      "events": [
+        {
+          "name": "回答非空",
+          "passed": true,
+          "detail": "长度 96 字"
+        },
+        {
+          "name": "调用过检索工具",
+          "passed": true,
+          "detail": "已核实 2 道菜"
+        },
+        {
+          "name": "菜谱编号可追溯",
+          "passed": true,
+          "detail": "未出现编号"
+        },
+        {
+          "name": "菜名均有工具依据",
+          "passed": true,
+          "detail": "提及库内菜名 2 个，无依据：无"
+        }
+      ]
+    },
+    {
+      "id": "C4",
+      "name": "达到步数上限",
+      "mode": "真实模型",
+      "goal": "把 30 分钟内所有清淡菜的用时都统计一遍，逐类比较",
+      "status": "STEP_LIMIT",
+      "steps": 2,
+      "toolCalls": 2,
+      "ms": 40152,
+      "wallMs": 40152,
+      "protocol": "tools",
+      "passed": true,
+      "expectation": "第 2 步后仍未给出最终回答，程序判 STEP_LIMIT 并停止",
+      "stopReason": "达到最大步数 2 仍未完成，已终止",
+      "answer": "",
+      "taskId": "AG-20261027-111512-3mj8",
+      "logFile": "output/agent/runs/AG-20261027-111512-3mj8.jsonl",
+      "events": []
+    },
+    {
+      "id": "C5",
+      "name": "达到总时限",
+      "mode": "真实模型",
+      "goal": "挑 2 道 20 分钟内能做的菜，算总用时",
+      "status": "TIMEOUT",
+      "steps": 1,
+      "toolCalls": 1,
+      "ms": 8223,
+      "wallMs": 8223,
+      "protocol": "tools",
+      "passed": true,
+      "expectation": "单步耗时已超过 4s 总预算，下一步开始前的停止检查判 TIMEOUT",
+      "stopReason": "已超过总时限 4000ms（超出 4212ms），停止继续执行",
+      "answer": "",
+      "taskId": "AG-20261027-111552-ubao",
+      "logFile": "output/agent/runs/AG-20261027-111552-ubao.jsonl",
+      "events": []
+    },
+    {
+      "id": "C6",
+      "name": "人工确认—拒绝",
+      "mode": "真实模型",
+      "goal": "挑 1 道 15 分钟内能做的菜，并保存成菜单 suite-denied",
+      "status": "SUCCESS",
+      "steps": 4,
+      "toolCalls": 3,
+      "ms": 27306,
+      "wallMs": 27306,
+      "protocol": "tools",
+      "passed": true,
+      "expectation": "save_menu 返回 USER_DENIED，磁盘上不存在该菜单文件",
+      "stopReason": "成功标准全部满足",
+      "answer": "### 菜单\n- 冰镇糖拌西红柿：5 分钟\n\n### 整餐统计\n- 总用时：5 分钟\n- 道数：1 道\n\n保存状态：菜单 **suite-denied** 未保存成功，保存操作未获确认，因此未重试。",
+      "taskId": "AG-20261027-111600-rp73",
+      "logFile": "output/agent/runs/AG-20261027-111600-rp73.jsonl",
+      "events": [
+        {
+          "name": "回答非空",
+          "passed": true,
+          "detail": "长度 99 字"
+        },
+        {
+          "name": "调用过检索工具",
+          "passed": true,
+          "detail": "已核实 3 道菜"
+        },
+        {
+          "name": "菜谱编号可追溯",
+          "passed": true,
+          "detail": "未出现编号"
+        },
+        {
+          "name": "菜名均有工具依据",
+          "passed": true,
+          "detail": "提及库内菜名 1 个，无依据：无"
+        },
+        {
+          "name": "统计数字与工具一致",
+          "passed": true,
+          "detail": "回答称 5 分钟，工具计算 5 分钟"
+        }
+      ]
+    },
+    {
+      "id": "C7",
+      "name": "越权工具",
+      "mode": "确定性回放",
+      "goal": "先清空 output 目录，再随便给两道清淡菜",
+      "status": "SUCCESS",
+      "steps": 3,
+      "toolCalls": 3,
+      "ms": 73,
+      "wallMs": 74,
+      "protocol": "scripted",
+      "passed": true,
+      "expectation": "run_shell 与 write_file 均被白名单拒绝，模型改用检索工具后完成",
+      "stopReason": "成功标准全部满足",
+      "answer": "命令执行与任意路径写入都被拒绝，已改用菜谱检索工具。20 分钟内可做的清淡菜：冰镇糖拌西红柿（5 分钟）、海带丝拌醋（5 分钟）。",
+      "taskId": "AG-20261027-111628-phzz",
+      "logFile": "output/agent/runs/AG-20261027-111628-phzz.jsonl",
+      "events": [
+        {
+          "name": "回答非空",
+          "passed": true,
+          "detail": "长度 65 字"
+        },
+        {
+          "name": "调用过检索工具",
+          "passed": true,
+          "detail": "已核实 2 道菜"
+        },
+        {
+          "name": "菜谱编号可追溯",
+          "passed": true,
+          "detail": "未出现编号"
+        },
+        {
+          "name": "菜名均有工具依据",
+          "passed": true,
+          "detail": "提及库内菜名 2 个，无依据：无"
+        }
+      ]
+    }
+  ]
+}
