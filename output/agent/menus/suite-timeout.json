@@ -1,0 +1,13 @@
+{
+  "menuId": "suite-timeout",
+  "title": "15分钟快捷菜单",
+  "createdAt": "2026-10-31T09:23:21.815Z",
+  "source": "agent-tool/save_menu",
+  "items": [
+    {
+      "recipeId": "R-078",
+      "name": "冰镇糖拌西红柿",
+      "minutes": 5
+    }
+  ]
+}

@@ -72,8 +72,12 @@ function printEvent(row) {
 	if (row.tool) parts.push(`tool=${row.tool}`)
 	if (row.ms !== undefined) parts.push(`${row.ms}ms`)
 	if (row.status) parts.push(`status=${row.status}`)
-	if (row.ok !== undefined && row.event === 'tool.result') parts.push(row.ok ? 'ok' : 'err')
-	if (row.errorType) parts.push(`err=${row.errorType}`)
+	if (row.ok !== undefined && row.event === 'tool.result') {
+		if (row.ok) parts.push(row.errorType ? `ok(${row.errorType})` : 'ok')
+		else parts.push(`err=${row.errorType || 'ERROR'}`)
+	} else if (row.errorType) {
+		parts.push(`err=${row.errorType}`)
+	}
 	console.log(parts.join(' '))
 	if (row.note) console.log(`           └─ ${row.note}`)
 	if (row.argsDigest) console.log(`           ├─ 参数 ${row.argsDigest}`)

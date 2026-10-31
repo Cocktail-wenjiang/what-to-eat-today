@@ -29,6 +29,17 @@ const OUT_JSON = path.join(ROOT, 'output/agent/suite-report.json')
 const OUT_MD = path.join(ROOT, 'output/agent/suite-report.md')
 const MENU_DIR = path.join(ROOT, 'output/agent/menus')
 
+/**
+ * --only C8：只跑指定用例，结果写到单独文件，不覆盖完整套件报告。
+ * 用于补充验证单个用例（例如新增的写操作核对），避免刷新已有 7 条的耗时与 Token 数据。
+ */
+const ONLY = (() => {
+	const i = process.argv.indexOf('--only')
+	if (i > -1 && process.argv[i + 1]) return process.argv[i + 1]
+	const eq = process.argv.find((a) => a.startsWith('--only='))
+	return eq ? eq.slice(7) : null
+})()
+
 const config = readModelConfig()
 if (!config.ok) {
 	console.error(config.reason)
@@ -42,7 +53,9 @@ const CASES = [
 		name: '正常完成',
 		mode: '真实模型',
 		goal: '两个人晚饭，30 分钟内能做完，口味清淡，不吃虾。挑 2 道菜，算一下这顿的总用时，并把菜单存成 suite-dinner',
-		opts: { confirmMode: 'yes', maxSteps: 8 },
+		// 总时限放宽到 10 分钟：本用例验证「正常完成」，不应被网关长尾（实测单步 30~45 s）
+		// 抢先判成 TIMEOUT。总时限本身由 C5 单独验证。
+		opts: { confirmMode: 'yes', maxSteps: 8, deadlineMs: 600_000 },
 		expect: (r) => r.status === 'SUCCESS' && fs.existsSync(path.join(MENU_DIR, 'suite-dinner.json')),
 		why: '状态为 SUCCESS，且菜单文件真实落盘'
 	},
@@ -63,7 +76,7 @@ const CASES = [
 		name: '工具异常',
 		mode: '真实模型 + 故障注入',
 		goal: '挑 2 道 20 分钟内能做的清淡菜，并告诉我这顿的总用时',
-		opts: { confirmMode: 'yes', maxSteps: 6, faults: { calc_stats: 'throw' } },
+		opts: { confirmMode: 'yes', maxSteps: 6, faults: { calc_stats: 'throw' }, deadlineMs: 600_000 },
 		expect: (r) => {
 			const errs = r.events.filter((e) => e.errorType === 'INTERNAL_ERROR')
 			const calcCalls = r.events.filter((e) => e.event === 'tool.result' && e.tool === 'calc_stats').length
@@ -96,7 +109,7 @@ const CASES = [
 		name: '人工确认—拒绝',
 		mode: '真实模型',
 		goal: '挑 1 道 15 分钟内能做的菜，并保存成菜单 suite-denied',
-		opts: { confirmMode: 'no', maxSteps: 5 },
+		opts: { confirmMode: 'no', maxSteps: 5, deadlineMs: 600_000 },
 		expect: (r) =>
 			r.events.some((e) => e.event === 'tool.result' && e.errorType === 'USER_DENIED') &&
 			!fs.existsSync(path.join(MENU_DIR, 'suite-denied.json')),
@@ -113,21 +126,56 @@ const CASES = [
 			return denied.length === 2 && r.status === 'SUCCESS'
 		},
 		why: 'run_shell 与 write_file 均被白名单拒绝，模型改用检索工具后完成'
+	},
+	{
+		id: 'C8',
+		name: '写操作超时后核对',
+		mode: '真实模型 + 故障注入',
+		goal: '挑 1 道 15 分钟内能做的菜，保存成菜单 suite-timeout',
+		// 注入「先写盘、再挂起不返回」：超时那一刻文件其实已经写入，
+		// 用来验证 2.5 要求的「状态不明时先核对执行结果，不得直接重试」
+		opts: {
+			confirmMode: 'yes',
+			maxSteps: 5,
+			faults: { save_menu: 'write-then-timeout' },
+			toolTimeoutMs: 1_500,
+			// 与 C4 同理：本用例只验证「超时后核对」，总时限放宽到 10 分钟，
+			// 避免网关长尾抢先把任务判成 TIMEOUT，把两个变量混在一起
+			deadlineMs: 600_000
+		},
+		expect: (r) => {
+			const reconciled = r.events.some(
+				(e) => e.event === 'tool.result' && e.errorType === 'TOOL_TIMEOUT_RECONCILED'
+			)
+			const saves = r.events.filter((e) => e.event === 'tool.result' && e.tool === 'save_menu').length
+			return reconciled && saves === 1 && fs.existsSync(path.join(MENU_DIR, 'suite-timeout.json'))
+		},
+		why: '超时后读回文件核对，判定本次写入已完成并按成功回传；save_menu 只被调用 1 次，模型未重试'
 	}
 ]
+
+const selected = ONLY ? CASES.filter((c) => c.id.toUpperCase() === ONLY.toUpperCase()) : CASES
+if (!selected.length) {
+	console.error(`没有编号为 ${ONLY} 的用例。可用：${CASES.map((c) => c.id).join('、')}`)
+	process.exit(1)
+}
+const OUT_JSON_ACTUAL = ONLY ? OUT_JSON.replace('.json', `-${ONLY}.json`) : OUT_JSON
+const OUT_MD_ACTUAL = ONLY ? OUT_MD.replace('.md', `-${ONLY}.md`) : OUT_MD
 
 const results = []
 console.log('=== Agent 测试套件 ===')
 console.log(`模型：${config.model}`)
-console.log(`限制：最大步数 ${LIMITS.maxSteps}、总时限 ${LIMITS.totalDeadlineMs}ms、单工具超时 ${LIMITS.toolTimeoutMs}ms\n`)
+console.log(`限制：最大步数 ${LIMITS.maxSteps}、总时限 ${LIMITS.totalDeadlineMs}ms、单工具超时 ${LIMITS.toolTimeoutMs}ms`)
+if (ONLY) console.log(`仅运行：${ONLY}（结果写入 ${path.relative(ROOT, OUT_JSON_ACTUAL)}，不覆盖完整套件报告）`)
+console.log('')
 
-// 清理上次运行留下的菜单，避免 C1/C6 的判定被旧文件污染
-for (const name of ['suite-dinner.json', 'suite-denied.json']) {
+// 清理上次运行留下的菜单，避免 C1/C6/C8 的判定被旧文件污染
+for (const name of ['suite-dinner.json', 'suite-denied.json', 'suite-timeout.json']) {
 	const f = path.join(MENU_DIR, name)
 	if (fs.existsSync(f)) fs.unlinkSync(f)
 }
 
-for (const c of CASES) {
+for (const c of selected) {
 	const started = Date.now()
 	const script = c.opts.script ? JSON.parse(fs.readFileSync(path.join(ROOT, c.opts.script), 'utf8')) : null
 	const confirm = createConfirmer({ mode: c.opts.confirmMode || 'no', timeoutMs: 3_000 })
@@ -138,6 +186,7 @@ for (const c of CASES) {
 		options: {
 			maxSteps: c.opts.maxSteps,
 			deadlineMs: c.opts.deadlineMs,
+			toolTimeoutMs: c.opts.toolTimeoutMs,
 			confirm,
 			faults: c.opts.faults,
 			script,
@@ -176,11 +225,11 @@ for (const c of CASES) {
 const passCount = results.filter((r) => r.passed).length
 console.log(`合计 ${passCount}/${results.length} 通过`)
 
-fs.mkdirSync(path.dirname(OUT_JSON), { recursive: true })
-fs.writeFileSync(OUT_JSON, JSON.stringify({ generatedAt: new Date().toISOString(), model: config.model, results }, null, 2), 'utf8')
-fs.writeFileSync(OUT_MD, toMarkdown(results), 'utf8')
-console.log(`报告数据：${path.relative(ROOT, OUT_JSON).replace(/\\/g, '/')}`)
-console.log(`表格：${path.relative(ROOT, OUT_MD).replace(/\\/g, '/')}`)
+fs.mkdirSync(path.dirname(OUT_JSON_ACTUAL), { recursive: true })
+fs.writeFileSync(OUT_JSON_ACTUAL, JSON.stringify({ generatedAt: new Date().toISOString(), model: config.model, results }, null, 2), 'utf8')
+fs.writeFileSync(OUT_MD_ACTUAL, toMarkdown(results), 'utf8')
+console.log(`报告数据：${path.relative(ROOT, OUT_JSON_ACTUAL).replace(/\\/g, '/')}`)
+console.log(`表格：${path.relative(ROOT, OUT_MD_ACTUAL).replace(/\\/g, '/')}`)
 
 function toMarkdown(rows) {
 	const head = [

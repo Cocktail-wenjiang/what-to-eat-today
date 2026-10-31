@@ -124,11 +124,10 @@ export function createExecutor({ confirm, faults = {}, toolTimeoutMs = LIMITS.to
 			return { ...result, meta: { ...base, ms, confirm: confirmMeta } }
 		} catch (error) {
 			const isTimeout = error?.name === 'ToolTimeoutError'
+			if (isTimeout) return handleTimeout({ name, args, writeDir, base, started, toolTimeoutMs, confirmMeta })
 			return fail(
-				isTimeout ? ERROR_CODE.TIMEOUT : ERROR_CODE.INTERNAL,
-				isTimeout
-					? `工具 ${name} 超过 ${toolTimeoutMs}ms 未返回，已停止等待（后台执行无法强制中断）`
-					: `工具 ${name} 执行异常：${error?.message || String(error)}`,
+				ERROR_CODE.INTERNAL,
+				`工具 ${name} 执行异常：${error?.message || String(error)}`,
 				base,
 				started
 			)
@@ -145,6 +144,16 @@ export function createExecutor({ confirm, faults = {}, toolTimeoutMs = LIMITS.to
 			// 返回一个永不完成的 Promise，用于验证超时分支
 			return new Promise(() => {})
 		}
+		if (fault === 'write-then-timeout') {
+			// 先真正执行（写盘已完成），再挂起不返回：
+			// 用于验证「调用状态不明时先读回核对」这一条，超时点文件其实已经写入
+			try {
+				toolbox[name](args)
+			} catch {
+				/* 写入本身失败的情况由超时分支的核对结果体现 */
+			}
+			return new Promise(() => {})
+		}
 		try {
 			return Promise.resolve(toolbox[name](args))
 		} catch (error) {
@@ -153,6 +162,72 @@ export function createExecutor({ confirm, faults = {}, toolTimeoutMs = LIMITS.to
 	}
 
 	return { execute, ALLOWED_TOOLS, POLICY }
+}
+
+/**
+ * 超时处理：只读工具与会写盘的工具要区别对待。
+ *
+ * 只读工具超时只是「停止等待」，没有后果；会修改数据的工具超时后状态不明——
+ * 可能已经写完了，也可能根本没开始。这时**不能直接重试**（重试可能把已完成的
+ * 写入再写一次，或把用户刚改过的内容覆盖掉），必须先读回目标文件核对。
+ */
+function handleTimeout({ name, args, writeDir, base, started, toolTimeoutMs, confirmMeta }) {
+	const recon = POLICY[name] === 'confirm' ? reconcileWrite(name, args, writeDir) : null
+
+	// 核对命中：本次写入其实已经完成，按成功返回，让模型继续而不是重试
+	if (recon?.written) {
+		return {
+			ok: true,
+			data: { ...recon.saved, file: recon.file, reconciled: true },
+			meta: { ...base, ms: Date.now() - started, errorType: 'TOOL_TIMEOUT_RECONCILED', confirm: confirmMeta }
+		}
+	}
+
+	const detail = recon ? `已读回 ${recon.file} 核对：${recon.reason}` : '该工具不修改数据，无需核对'
+	return fail(
+		ERROR_CODE.TIMEOUT,
+		`工具 ${name} 超过 ${toolTimeoutMs}ms 未返回，已停止等待（无法强制中断后台执行）；${detail}。` +
+			(recon ? '按未执行处理，不得直接重试：需重新发起调用并再次确认。' : ''),
+		base,
+		started,
+		{ reconciled: false },
+		confirmMeta
+	)
+}
+
+/**
+ * 读回目标文件，判断本次写入是否已经生效。
+ * 比对的是「标题 + 菜品清单」，而不只是文件是否存在——同名文件可能是上一次运行留下的，
+ * 只看存在性会把历史产物误判成本次成功。
+ */
+function reconcileWrite(name, args, writeDir) {
+	if (name !== 'save_menu') return null
+	const file = path.join(writeDir, `${args.menuId}.json`)
+	const rel = path.relative(path.resolve(writeDir, '../../..'), file).replace(/\\/g, '/')
+	try {
+		if (!fs.existsSync(file)) {
+			return { written: false, file: rel, reason: '文件不存在，本次写入未生效' }
+		}
+		const saved = JSON.parse(fs.readFileSync(file, 'utf8'))
+		const savedIds = (saved.items || []).map((i) => i.recipeId)
+		if (saved.title !== args.title) {
+			return {
+				written: false,
+				file: rel,
+				reason: `文件存在但标题为「${saved.title}」，与本次「${args.title}」不同（应为历史文件）`
+			}
+		}
+		if (JSON.stringify(savedIds) !== JSON.stringify(args.recipeIds)) {
+			return {
+				written: false,
+				file: rel,
+				reason: `文件存在但菜品清单为 ${savedIds.join('、')}，与本次 ${args.recipeIds.join('、')} 不同`
+			}
+		}
+		return { written: true, file: rel, saved }
+	} catch (error) {
+		return { written: false, file: rel, reason: `读回文件失败：${error?.message || String(error)}` }
+	}
 }
 
 /**

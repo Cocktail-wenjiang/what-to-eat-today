@@ -1,0 +1,56 @@
+{
+  "generatedAt": "2026-10-31T09:12:18.605Z",
+  "model": "MiniMax-M3.1-Flash",
+  "results": [
+    {
+      "id": "C8",
+      "name": "写操作超时后核对",
+      "mode": "真实模型 + 故障注入",
+      "goal": "挑 1 道 15 分钟内能做的菜，保存成菜单 suite-timeout",
+      "status": "SUCCESS",
+      "steps": 4,
+      "toolCalls": 3,
+      "ms": 218232,
+      "wallMs": 218234,
+      "protocol": "tools",
+      "passed": true,
+      "expectation": "超时后读回文件核对，判定本次写入已完成并按成功回传；save_menu 只被调用 1 次，模型未重试",
+      "stopReason": "成功标准全部满足",
+      "answer": "## 菜单\n- 冰镇糖拌西红柿：5 分钟\n\n## 整餐统计\n- 总用时：5 分钟\n- 道数：1 道\n\n菜单已保存为 `suite-timeout`。",
+      "taskId": "AG-20261031-170840-8ps5",
+      "logFile": "output/agent/runs/AG-20261031-170840-8ps5.jsonl",
+      "events": [
+        {
+          "name": "回答非空",
+          "passed": true,
+          "detail": "长度 74 字"
+        },
+        {
+          "name": "调用过检索工具",
+          "passed": true,
+          "detail": "已核实 3 道菜"
+        },
+        {
+          "name": "菜谱编号可追溯",
+          "passed": true,
+          "detail": "未出现编号"
+        },
+        {
+          "name": "菜名均有工具依据",
+          "passed": true,
+          "detail": "提及库内菜名 1 个，无依据：无"
+        },
+        {
+          "name": "统计数字与工具一致",
+          "passed": true,
+          "detail": "回答称 5 分钟，工具计算 5 分钟"
+        },
+        {
+          "name": "菜单文件已写入",
+          "passed": true,
+          "detail": "output/agent/menus/suite-timeout.json"
+        }
+      ]
+    }
+  ]
+}

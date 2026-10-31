@@ -256,7 +256,12 @@ function replayLog(arg) {
 		const parts = [`[${time}]`, `step=${step}`, r.event]
 		if (r.tool) parts.push(`tool=${r.tool}`)
 		if (r.ms !== undefined && r.event !== 'run.end') parts.push(`${r.ms}ms`)
-		if (r.ok !== undefined) parts.push(r.ok ? 'ok' : `err=${r.errorType || 'ERROR'}`)
+		if (r.ok !== undefined) {
+			// 成功但带错误标签的情况必须显示出来，例如写操作超时后经核对确认已落盘
+			// （TOOL_TIMEOUT_RECONCILED）——只看 ok 会以为一切正常，看不出它靠核对才判成功
+			if (r.ok) parts.push(r.errorType ? `ok(${r.errorType})` : 'ok')
+			else parts.push(`err=${r.errorType || 'ERROR'}`)
+		}
 		if (r.status) parts.push(`status=${r.status}`)
 		console.log(parts.join(' '))
 		// 回看是给人看的：摘要按终端宽度截断，完整内容仍在 JSONL 里

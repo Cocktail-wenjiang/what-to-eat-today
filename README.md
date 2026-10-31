@@ -782,13 +782,15 @@ node tools/verify-library.mjs
 npm run agent:tools   # 工具 Schema 与权限策略
 npm run agent:check   # 不接模型，用合法/非法参数直接打工具（8 条）
 npm run agent -- run --goal "两个人晚饭，30 分钟内，清淡，不吃虾。挑 2 道菜，算总用时，存成 dinner-20261027"
-npm run agent:test    # 7 个用例的测试套件（约 2~3 分钟，含真实模型调用）
+npm run agent:test    # 8 个用例的测试套件（约 3~5 分钟，含真实模型调用）
 ```
 
 四个工具：`search_recipes`（筛菜）、`recipe_detail`（详情）、`calc_stats`（统计）、
 `save_menu`（写菜单，**需人工确认**）。前三个只读自动执行；`save_menu` 写 `output/agent/menus/`，
 执行前展示影响面并等待确认，拒绝或超时一律不执行。
 
-限制全部由程序执行，不依赖提示词：最大 8 步、总时限 150 s、单工具 3 s、模型重试 2 次、
-单步最多 3 个工具调用、单条工具结果 1800 字符截断。运行日志落在
+限制全部由程序执行，不依赖提示词：最大 8 步、总时限 150 s（单次请求的超时不超过剩余预算）、
+单工具 3 s、模型重试 2 次、单步最多 3 个工具调用、单条工具结果 1800 字符截断。
+`save_menu` 超时后会读回目标文件核对标题与菜品清单，命中按成功、未命中按未执行并要求重新确认，不直接重试。
+运行日志落在
 `output/agent/runs/<任务编号>.jsonl`，可用 `node tools/agent/cli.mjs log <任务编号>` 回看。

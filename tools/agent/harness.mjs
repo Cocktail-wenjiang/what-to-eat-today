@@ -146,7 +146,9 @@ export async function runAgent({ goal, modelConfig, options = {} }) {
 		let turn
 		try {
 			// ② 模型提出下一步
-			turn = await model.chat({ messages })
+			// 外面套一层兜底：即使底层 fetch 因网关长尾不响应、AbortSignal 未能及时生效，
+			// 也不能让一步无限期挂着（实测出现过 11 分钟无任何事件的情况）
+			turn = await withDeadline(model.chat({ messages }), deadline)
 			run.protocol = turn.protocol
 			logger.log({
 				step,
@@ -241,7 +243,10 @@ export async function runAgent({ goal, modelConfig, options = {} }) {
 				tool: call.name,
 				ms: result.meta?.ms ?? 0,
 				ok: result.ok,
-				errorType: result.ok ? undefined : result.error?.code,
+				// 用 meta.errorType 而不是 result.error.code：成功路径也可能带错误标签，
+				// 例如写操作超时后经核对确认已落盘（TOOL_TIMEOUT_RECONCILED），
+				// 这时 ok=true 但必须能从日志里看出「它是靠核对才判成功的」。
+				errorType: result.meta?.errorType,
 				argsDigest: digest(call.args ?? {}),
 				resultDigest: digest(result.ok ? result.data : result.error, 200)
 			})
@@ -305,9 +310,33 @@ export async function runAgent({ goal, modelConfig, options = {} }) {
 	return finish(run, startedAt)
 }
 
+/**
+ * 给模型调用套一层总时限兜底。
+ *
+ * model.mjs 内部已用 AbortSignal 限制单次请求，但实测遇到网关「连接建立后不回包」时，
+ * 中止信号没有把调用唤醒，整轮任务就卡死了。这里再加一道 Promise.race：
+ * 到点就放弃等待并判 TIMEOUT。语义与工具超时一致——只停止等待，不代表服务端已取消。
+ */
+function withDeadline(promise, deadline) {
+	promise.catch(() => {}) // 兜底先触发时，原请求后续的失败不再冒泡成未处理异常
+	// 这是「防挂死」的兜底，不是精确限时：精确限时由 model.mjs 的 AbortSignal 负责。
+	// 下限 30 s 保证短预算用例（C5 的 4 s）仍能观察模型真实耗时；
+	// 上限取三次重试的总时长，避免放宽 deadline 的用例单步等上十分钟。
+	const budget = deadline - Date.now() + 2_000
+	const ms = Math.max(30_000, Math.min(budget, LIMITS.modelTimeoutMs * 3 + 5_000))
+	let timer
+	const guard = new Promise((_, reject) => {
+		timer = setTimeout(() => {
+			const err = new Error(`模型调用超过总时限（兜底等待 ${Math.round(ms / 1000)}s 后放弃），已停止等待`)
+			err.code = MODEL_ERROR.TIMEOUT
+			reject(err)
+		}, ms)
+	})
+	return Promise.race([promise, guard]).finally(() => clearTimeout(timer))
+}
+
 /** 停止检查：返回 null 表示可以继续 */
-function checkStop({ deadline, deadlineMs, signal }) {
-	if (signal?.aborted) return { status: STATUS.ABORTED, reason: '收到外部中止信号' }
+function checkStop({ deadline, deadlineMs, signal }) {	if (signal?.aborted) return { status: STATUS.ABORTED, reason: '收到外部中止信号' }
 	const now = Date.now()
 	if (now > deadline) {
 		return {
